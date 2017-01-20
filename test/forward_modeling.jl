@@ -1,9 +1,9 @@
-using PyPlot, ElasticWave
+using ElasticWave
 
-nz = 173; nx = 256; ext= 20; iflag = 2;
-dx = 10. ; dz = 10. ; dt = 1e-3; tmax = 1.5; f0=10.;
+nz = 300; nx = 900; ext= 20; iflag = 2;
+dx = 10. ; dz = 10. ; dt = 1e-3; tmax = 6; f0=10.;
 vp=3000.*ones(nz,nx);  vs=3000./sqrt(3)*ones(nz,nx); rho=2.5*ones(nz,nx);
-vp[86:end,:]=4000.;  vs[86:end,:]=4000./sqrt(3);
+vp[150:end,:]=4000.;  vs[150:end,:]=4000./sqrt(3);
 fidMtx = CreateFidMtx(nz, nx, ext, iflag, vp, vs, rho, dz, dx, dt, f0);
 
 # multi-sources case
@@ -14,7 +14,7 @@ src = InitSource(isz, isx, nz, nx, ext, iflag, f0, ot, dt, flags);
 # =========finite difference modeling==========
 irx = collect(1:nx); irz = 1*ones(Int64, length(irx));
 @time shotv = MultiStepForward(irz, irx, src, fidMtx, tmax=tmax)
-@time shotv = MultiStepForward_old(irz, irx, src, fidMtx, tmax=tmax)
+@time shotv = MultiStepForward(irz, irx, src, fidMtx, tmax=tmax)
 
 function MultiStepForward_old(irz::Array{Int64,1}, irx::Array{Int64,1}, src::Source, fidMtx::FidMtx; tmax=0.5)
     nz  =  src.nz;  nx = src.nx    ;
@@ -36,18 +36,19 @@ function MultiStepForward_old(irz::Array{Int64,1}, irx::Array{Int64,1}, src::Sou
     end
     return shotv
 end
+@time shotv1 = MultiStepForward_old(irz, irx, src, fidMtx, tmax=tmax)
+@time shotv1 = MultiStepForward_old(irz, irx, src, fidMtx, tmax=tmax)
 
 
 
-SeisPlot(shotv.Vx, pclip=90)
-
-root = homedir(); path = join([root "/Desktop/wfd.bin"]);
-MultiStepForward(path, src, fidMtx, tmax=tmax);
-shotv1 = binWfd2shotv(irz, irx, path);
-
-path1 = join([root "/Desktop/moive"]);
-waveAnim(path1, path, cpt="Vx")
-
+# SeisPlot(shotv.Vx, pclip=90)
+#
+# root = homedir(); path = join([root "/Desktop/wfd.bin"]);
+# MultiStepForward(path, src, fidMtx, tmax=tmax);
+# shotv1 = binWfd2shotv(irz, irx, path);
+#
+# path1 = join([root "/Desktop/moive"]);
+# waveAnim(path1, path, cpt="Vx")
 # fid = open(path, "r")
 # lwfd = nz*nx*sizeof(Float32)*5; pre = sizeof(Float32)*5;
 # nt = floor(Int64, (filesize(fid)-pre)/lwfd)
