@@ -11,7 +11,7 @@ flags = vec([true false false false false]);
 src = InitSource(isz, isx, nz, nx, ext, iflag, f0, ot, dt, flags);
 
 # =========finite difference modeling==========
-path_pv = "/Users/wenlei/Desktop/pv.bin"
+path_pv = "/Users/wenlei/Desktop/pv1.bin"
 MultiStepForward(path_pv, src, fidMtx, dz, dx);
 # (vxx, vxz, vzx, vzz) = ReadPv(path, 620); imshow(vxx+vzz); figure(); imshow(vxz-vzx);
 

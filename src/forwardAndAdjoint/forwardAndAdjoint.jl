@@ -1,4 +1,8 @@
-export OneStepForward!,
+export mysum1!,
+       musum2!,
+       dotproduct!,
+       dotproduct1!,
+       OneStepForward!,
        OneStepAdjoint!,
        MultiStepForward,
        MultiStepAdjoint

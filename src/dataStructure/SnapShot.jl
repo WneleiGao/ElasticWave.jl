@@ -516,11 +516,9 @@ function IptWfd(path::String, path1::String)
     return tmp
 end
 
-function partialV(spt::SnapShot, dz::Float64, dx::Float64)
+function partialV!(vxx::Array{Float64,2}, vxz::Array{Float64,2}, vzx::Array{Float64,2}, vzz::Array{Float64,2}, spt::SnapShot, dz::Float64, dx::Float64, vx::Array{Float64,1}, vz::Array{Float64,1})
     a1 = 9/8; a2 = -1/24;
     nz = spt.nz; nx = spt.nx; ext = spt.ext; iflag = spt.iflag
-    vxx = zeros(nz,nx); vxz = zeros(nz,nx);
-    vzx = zeros(nz,nx); vzz = zeros(nz,nx);
     if iflag == 1
        Nz = nz + 2*ext
        upper = ext
@@ -528,10 +526,10 @@ function partialV(spt::SnapShot, dz::Float64, dx::Float64)
        Nz = nz +   ext
        upper = 0
     end
-    vx = spt.Vxx + spt.Vxz
-    vz = spt.Vzx + spt.Vzz
-    for iz = 1 : nz
-        for ix = 1 : nx
+    mysum1!(vx, spt.Vxx, spt.Vxz)
+    mysum1!(vz, spt.Vzx, spt.Vzz)
+    for ix = 1 : Nx
+        for iz = 1 : Nz
           # compute Dvx/Dx, centered on (i,j)
             ind1 = (ix+ext-3)*Nz + (iz+upper)
             ind2 = (ix+ext-2)*Nz + (iz+upper)
@@ -576,8 +574,69 @@ function partialV(spt::SnapShot, dz::Float64, dx::Float64)
             end
         end
     end
-    return vxx, vxz, vzx, vzz
+    return nothing
 end
+
+# function partialV!(vxx::Array{Float64,2}, vxz::Array{Float64,2}, vzx::Array{Float64,2}, vzz::Array{Float64,2}, spt::SnapShot, dz::Float64, dx::Float64, vx::Array{Float64,1}, vz::Array{Float64,1})
+#     a1 = 9/8; a2 = -1/24;
+#     nz = spt.nz; nx = spt.nx; ext = spt.ext; iflag = spt.iflag
+#     if iflag == 1
+#        Nz = nz + 2*ext
+#        upper = ext
+#     elseif iflag == 2
+#        Nz = nz +   ext
+#        upper = 0
+#     end
+#     mysum1!(vx, spt.Vxx, spt.Vxz)
+#     mysum1!(vz, spt.Vzx, spt.Vzz)
+#     for iz = 1 : nz
+#         for ix = 1 : nx
+#           # compute Dvx/Dx, centered on (i,j)
+#             ind1 = (ix+ext-3)*Nz + (iz+upper)
+#             ind2 = (ix+ext-2)*Nz + (iz+upper)
+#             ind3 = (ix+ext-1)*Nz + (iz+upper)
+#             ind4 = (ix+ext  )*Nz + (iz+upper)
+#             vxx[iz,ix] =  a1/dx*(vx[ind3]-vx[ind2]) + a2/dx*(vx[ind4]-vx[ind1])
+#           # compute Dvx/Dz
+#             if iflag == 2 && iz == 1
+#                ind1 = (ix+ext-1)*Nz + iz+upper
+#                ind2 = (ix+ext-1)*Nz + iz+upper+1
+#                ind3 = (ix+ext-1)*Nz + iz+upper+2
+#                vxz[iz,ix] =  a1/dz*(vx[ind2]-vx[ind1]) + a2/dx*(vx[ind3])
+#             else
+#                ind1 = (ix+ext-1)*Nz + iz+upper-1
+#                ind2 = (ix+ext-1)*Nz + iz+upper
+#                ind3 = (ix+ext-1)*Nz + iz+upper+1
+#                ind4 = (ix+ext-1)*Nz + iz+upper+2
+#                vxz[iz,ix] =  a1/dz*(vx[ind3]-vx[ind2]) + a2/dz*(vx[ind4]-vx[ind1])
+#             end
+#             # compute Dvz/Dx
+#                ind1 = (ix+ext-2)*Nz + (iz+upper)
+#                ind2 = (ix+ext-1)*Nz + (iz+upper)
+#                ind3 = (ix+ext  )*Nz + (iz+upper)
+#                ind4 = (ix+ext+1)*Nz + (iz+upper)
+#                vzx[iz,ix] =  a1/dx*(vz[ind3]-vz[ind2]) + a2/dx*(vz[ind4]-vz[ind1])
+#           # compute Dvz/Dz
+#             if iflag == 2 && iz == 1
+#                ind1 = (ix+ext-1)*Nz + iz+upper
+#                ind2 = (ix+ext-1)*Nz + iz+upper+1
+#                vzz[iz,ix] =  a1/dz*vz[ind1] + a2/dz*vz[ind2]
+#             elseif iflag == 2 && iz == 2
+#                ind1 = (ix+ext-1)*Nz + iz+upper-1
+#                ind2 = (ix+ext-1)*Nz + iz+upper
+#                ind3 = (ix+ext-1)*Nz + iz+upper+1
+#                vzz[iz,ix] =  a1/dz*(vz[ind2]-vz[ind1]) + a2/dz*vz[ind3]
+#             else
+#                ind1 = (ix+ext-1)*Nz + iz+upper-2
+#                ind2 = (ix+ext-1)*Nz + iz+upper-1
+#                ind3 = (ix+ext-1)*Nz + iz+upper
+#                ind4 = (ix+ext-1)*Nz + iz+upper+1
+#                vzz[iz,ix] =  a1/dz*(vz[ind3]-vz[ind2]) + a2/dz*(vz[ind4]-vz[ind1])
+#             end
+#         end
+#     end
+#     return nothing
+# end
 
 function WritePv(path::String, vxx::Array{Float64,2}, vxz::Array{Float64,2}, vzx::Array{Float64,2}, vzz::Array{Float64,2}, nz::Int64, nx::Int64, ext::Int64, iflag::Int64, dt::Float64)
     fid = open(path, "w")
@@ -638,6 +697,24 @@ function InfoPv(path::String; print_flag=false)
     return nz, nx, ext, iflag, dt, ns
 end
 
+function checkPv(path, path1)
+    (nz, nx, ext, iflag, dt, nt) = InfoPv(path)
+    vxx = zeros(nz,nx); vxz = zeros(nz,nx);
+    vzx = zeros(nz,nx); vzz = zeros(nz,nx);
+    vxx1 = zeros(nz,nx); vxz1 = zeros(nz,nx);
+    vzx1 = zeros(nz,nx); vzz1 = zeros(nz,nx);
+    d=0.
+    for it = 1 : nt
+        (vxx , vxz , vzx , vzz ) = ReadPv(path, it)
+        (vxx1, vxz1, vzx1, vzz1) = ReadPv(path1, it)
+        d = d + vecnorm(vxx-vxx1)
+        d = d + vecnorm(vxz-vxz1)
+        d = d + vecnorm(vzx-vzx1)
+        d = d + vecnorm(vzz-vzz1)
+    end
+    return d
+end
+
 function IptSpts(path::String, path1::String)
     (nz, nx, ext, iflag, dt, nt) = InfoSnapShots(path1)
     tmp = 0.0
@@ -656,4 +733,34 @@ function IptSpts(path::String, path1::String)
         tmp = tmp + dot(spt.Txzz, spt1.Txzz)
     end
     return tmp
+end
+
+function IptSpts(spt1::SnapShot, spt2::SnapShot)
+    d = 0.0
+    d = d + dot(spt1.Vxx, spt2.Vxx)
+    d = d + dot(spt1.Vxz, spt2.Vxz)
+    d = d + dot(spt1.Vzx, spt2.Vzx)
+    d = d + dot(spt1.Vzz, spt2.Vzz)
+    d = d + dot(spt1.Txxx, spt2.Txxx)
+    d = d + dot(spt1.Txxz, spt2.Txxz)
+    d = d + dot(spt1.Tzzx, spt2.Tzzx)
+    d = d + dot(spt1.Tzzz, spt2.Tzzz)
+    d = d + dot(spt1.Txzx, spt2.Txzx)
+    d = d + dot(spt1.Txzz, spt2.Txzz)
+    return d
+end
+
+function dif2spt(spt1::SnapShot, spt2::SnapShot)
+    d = 0.0
+    d = d + norm(spt1.Vxx-spt2.Vxx)
+    d = d + norm(spt1.Vxz-spt2.Vxz)
+    d = d + norm(spt1.Vzx-spt2.Vzx)
+    d = d + norm(spt1.Vzz-spt2.Vzz)
+    d = d + norm(spt1.Txxx-spt2.Txxx)
+    d = d + norm(spt1.Txxz-spt2.Txxz)
+    d = d + norm(spt1.Tzzx-spt2.Tzzx)
+    d = d + norm(spt1.Tzzz-spt2.Tzzz)
+    d = d + norm(spt1.Txzx-spt2.Txzx)
+    d = d + norm(spt1.Txzz-spt2.Txzz)
+    return d
 end

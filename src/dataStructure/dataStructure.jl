@@ -52,11 +52,13 @@ export # =====================PML absorbing boundaries============
        ScaleWfd!,
        ReverseOrderWfd,
        IptWfd,
-       partialV,
+       partialV!,
        WritePv,
        ReadPv,
        InfoPv,
+       checkPv,
        IptSpts,
+       dif2spt,
       #  =====================Sources=================================
        Source,
        Ricker,
@@ -65,6 +67,7 @@ export # =====================PML absorbing boundaries============
        SrcRange,
        SourcesTimeRange,
        AddSource!,
+       AddSourceBorn!,
        AddMultiSources!,
        ConvertBornSource2Spts,
       #  =====================Records=================================

@@ -6,6 +6,14 @@ function dotproduct!(y::Array{Float64,1}, a::Array{Float64,1}, b::Array{Float64,
     return nothing
 end
 
+function dotproduct1!(a::Array{Float64,1}, b::Array{Float64,1})
+    n = length(a)
+    @inbounds for i = 1 : n
+        a[i] = a[i] * b[i]
+    end
+    return nothing
+end
+
 function mysum1!(y::Array{Float64,1}, a::Array{Float64,1}, b::Array{Float64,1})
     n = length(y)
     @inbounds for i = 1 : n
@@ -70,12 +78,12 @@ function OneStepAdjoint!(SnapShot2::SnapShot, SnapShot1::SnapShot, fidMtx::FidMt
     tmp = (fidMtx.MTxxzBVz)'*SnapShot1.Txxz + (fidMtx.MTzzzBVz)'*SnapShot1.Tzzz + (fidMtx.MTxzxBVz)'*SnapShot1.Txzx
     SnapShot2.Vzx = SnapShot1.Vzx + tmp
     SnapShot2.Vzz = SnapShot1.Vzz + tmp
-    SnapShot2.Txxx = fidMtx.MTxxxBTxxx*SnapShot1.Txxx
-    SnapShot2.Txxz = fidMtx.MTxxzBTxxz*SnapShot1.Txxz
-    SnapShot2.Tzzx = fidMtx.MTzzxBTzzx*SnapShot1.Tzzx
-    SnapShot2.Tzzz = fidMtx.MTzzzBTzzz*SnapShot1.Tzzz
-    SnapShot2.Txzx = fidMtx.MTxzxBTxzx*SnapShot1.Txzx
-    SnapShot2.Txzz = fidMtx.MTxzzBTxzz*SnapShot1.Txzz
+    SnapShot2.Txxx = fidMtx.MTxxxBTxxx .* SnapShot1.Txxx
+    SnapShot2.Txxz = fidMtx.MTxxzBTxxz .* SnapShot1.Txxz
+    SnapShot2.Tzzx = fidMtx.MTzzxBTzzx .* SnapShot1.Tzzx
+    SnapShot2.Tzzz = fidMtx.MTzzzBTzzz .* SnapShot1.Tzzz
+    SnapShot2.Txzx = fidMtx.MTxzxBTxzx .* SnapShot1.Txzx
+    SnapShot2.Txzz = fidMtx.MTxzzBTxzz .* SnapShot1.Txzz
 
     tmp = (fidMtx.MVxxBTxx)'*SnapShot2.Vxx
     SnapShot2.Txxx = tmp + SnapShot2.Txxx
@@ -86,40 +94,34 @@ function OneStepAdjoint!(SnapShot2::SnapShot, SnapShot1::SnapShot, fidMtx::FidMt
     tmp = (fidMtx.MVxzBTxz)'*SnapShot2.Vxz + (fidMtx.MVzxBTxz)'*SnapShot2.Vzx
     SnapShot2.Txzx = tmp + SnapShot2.Txzx
     SnapShot2.Txzz = tmp + SnapShot2.Txzz
-    SnapShot2.Vxx = fidMtx.MVxxBVxx*SnapShot2.Vxx
-    SnapShot2.Vxz = fidMtx.MVxzBVxz*SnapShot2.Vxz
-    SnapShot2.Vzx = fidMtx.MVzxBVzx*SnapShot2.Vzx
-    SnapShot2.Vzz = fidMtx.MVzzBVzz*SnapShot2.Vzz
+    SnapShot2.Vxx = fidMtx.MVxxBVxx .* SnapShot2.Vxx
+    SnapShot2.Vxz = fidMtx.MVxzBVxz .* SnapShot2.Vxz
+    SnapShot2.Vzx = fidMtx.MVzxBVzx .* SnapShot2.Vzx
+    SnapShot2.Vzz = fidMtx.MVzzBVzz .* SnapShot2.Vzz
     return nothing
 end
 
-function OneStepAdjoint!(SnapShot2::SnapShot, SnapShot1::SnapShot, fidMtx::FidMtx)
+function OneStepAdjoint!(SnapShot2::SnapShot, SnapShot1::SnapShot, fidMtx::FidMtx, tmp::Array{Float64,1}, tmp1::Array{Float64,1})
     SnapShot2.it = SnapShot1.it - 1
     AcmulB!(tmp , fidMtx.MTxxxBVx, SnapShot1.Txxx); AcmulB!(tmp1, fidMtx.MTzzxBVx, SnapShot1.Tzzx); mysum2!(tmp, tmp1);
     AcmulB!(tmp1, fidMtx.MTxzzBVx, SnapShot1.Txzz); mysum2!(tmp , tmp1); mysum1!(SnapShot2.Vxx, SnapShot1.Vxx, tmp); mysum1!(SnapShot2.Vxz, SnapShot1.Vxz, tmp);
-
     AcmulB!(tmp , fidMtx.MTxxzBVz, SnapShot1.Txxz); AcmulB!(tmp1, fidMtx.MTzzzBVz, SnapShot1.Tzzz); mysum2!(tmp, tmp1);
     AcmulB!(tmp1, fidMtx.MTxzxBVz, SnapShot1.Txzx); mysum2!(tmp , tmp1); mysum1!(SnapShot2.Vzx, SnapShot1.Vzx, tmp); mysum1!(SnapShot2.Vzz, SnapShot1.Vzz, tmp);
+    dotproduct!(SnapShot2.Txxx, fidMtx.MTxxxBTxxx, SnapShot1.Txxx)
+    dotproduct!(SnapShot2.Txxz, fidMtx.MTxxzBTxxz, SnapShot1.Txxz)
+    dotproduct!(SnapShot2.Tzzx, fidMtx.MTzzxBTzzx, SnapShot1.Tzzx)
+    dotproduct!(SnapShot2.Tzzz, fidMtx.MTzzzBTzzz, SnapShot1.Tzzz)
+    dotproduct!(SnapShot2.Txzx, fidMtx.MTxzxBTxzx, SnapShot1.Txzx)
+    dotproduct!(SnapShot2.Txzz, fidMtx.MTxzzBTxzz, SnapShot1.Txzz)
 
-    SnapShot2.Txxx = fidMtx.MTxxxBTxxx*SnapShot1.Txxx
-    SnapShot2.Txxz = fidMtx.MTxxzBTxxz*SnapShot1.Txxz
-    SnapShot2.Tzzx = fidMtx.MTzzxBTzzx*SnapShot1.Tzzx
-    SnapShot2.Tzzz = fidMtx.MTzzzBTzzz*SnapShot1.Tzzz
-    SnapShot2.Txzx = fidMtx.MTxzxBTxzx*SnapShot1.Txzx
-    SnapShot2.Txzz = fidMtx.MTxzzBTxzz*SnapShot1.Txzz
-
-    tmp = (fidMtx.MVxxBTxx)'*SnapShot2.Vxx
-    SnapShot2.Txxx = tmp + SnapShot2.Txxx
-    SnapShot2.Txxz = tmp + SnapShot2.Txxz
-    tmp = (fidMtx.MVzzBTzz)'*SnapShot2.Vzz
-    SnapShot2.Tzzx = tmp + SnapShot2.Tzzx
-    SnapShot2.Tzzz = tmp + SnapShot2.Tzzz
-    tmp = (fidMtx.MVxzBTxz)'*SnapShot2.Vxz + (fidMtx.MVzxBTxz)'*SnapShot2.Vzx
-    SnapShot2.Txzx = tmp + SnapShot2.Txzx
-    SnapShot2.Txzz = tmp + SnapShot2.Txzz
-    SnapShot2.Vxx = fidMtx.MVxxBVxx*SnapShot2.Vxx
-    SnapShot2.Vxz = fidMtx.MVxzBVxz*SnapShot2.Vxz
-    SnapShot2.Vzx = fidMtx.MVzxBVzx*SnapShot2.Vzx
-    SnapShot2.Vzz = fidMtx.MVzzBVzz*SnapShot2.Vzz
+    AcmulB!(tmp, fidMtx.MVxxBTxx, SnapShot2.Vxx); mysum2!(SnapShot2.Txxx, tmp); mysum2!(SnapShot2.Txxz, tmp);
+    AcmulB!(tmp, fidMtx.MVzzBTzz, SnapShot2.Vzz); mysum2!(SnapShot2.Tzzx, tmp); mysum2!(SnapShot2.Tzzz, tmp);
+    AcmulB!(tmp, fidMtx.MVxzBTxz, SnapShot2.Vxz);
+    AcmulB!(tmp1,fidMtx.MVzxBTxz, SnapShot2.Vzx); mysum2!(tmp, tmp1);
+    mysum2!(SnapShot2.Txzx, tmp); mysum2!(SnapShot2.Txzz, tmp);
+    dotproduct1!(SnapShot2.Vxx, fidMtx.MVxxBVxx);
+    dotproduct1!(SnapShot2.Vxz, fidMtx.MVxzBVxz);
+    dotproduct1!(SnapShot2.Vzx, fidMtx.MVzxBVzx);
+    dotproduct1!(SnapShot2.Vzz, fidMtx.MVzzBVzz);
     return nothing
 end

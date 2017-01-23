@@ -1,4 +1,4 @@
-function AcmulB!(y::Array{Float64,1}, A::SparseMatrixCSC{Float64,Int64}, x::Array{Float64,1}; nthreads::Int64=1)
+function AcmulB!(y::Array{Float64,1}, A::SparseMatrixCSC{Float64,Int64}, x::Array{Float64,1}; nthreads::Int64=4)
 
     (m,n) = size(A)
     if length(x) != m || length(y) != n
@@ -9,7 +9,7 @@ function AcmulB!(y::Array{Float64,1}, A::SparseMatrixCSC{Float64,Int64}, x::Arra
     return nothing
 end
 
-function AcmulB!(y::Array{Complex128,1}, A::SparseMatrixCSC{Float64,Int64}, x::Array{Complex128,1}; nthreads::Int64=1)
+function AcmulB!(y::Array{Complex128,1}, A::SparseMatrixCSC{Float64,Int64}, x::Array{Complex128,1}; nthreads::Int64=4)
 
     (m,n) = size(A)
     if length(x) != m || length(y) != n
@@ -20,7 +20,7 @@ function AcmulB!(y::Array{Complex128,1}, A::SparseMatrixCSC{Float64,Int64}, x::A
     return nothing
 end
 
-function AcmulB!(y::Array{Complex128,1}, A::SparseMatrixCSC{Complex128,Int64}, x::Array{Complex128,1}; nthreads::Int64=1)
+function AcmulB!(y::Array{Complex128,1}, A::SparseMatrixCSC{Complex128,Int64}, x::Array{Complex128,1}; nthreads::Int64=4)
 
     (m,n) = size(A)
     if length(x) != m || length(y) != n
