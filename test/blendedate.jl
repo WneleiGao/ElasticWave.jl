@@ -1,8 +1,15 @@
 using PyPlot, ElasticWave
-nz = 177; nx = 203; ext= 30;   iflag = 1;
+nz = 133; nx = 203; ext= 20; iflag = 1;
 dx = 5. ; dz = 5. ; dt = 5e-4; tmax = 0.5; f0=30.;
-vp =4000.*ones(nz,nx);  vs=2000.*ones(nz,nx); rho=2.5*ones(nz,nx);
+vp =4000.*ones(nz,nx);  vs=2000.*ones(nz,nx); rho=2.5*ones(nz,nx)*1e-4;
 fidMtx = CreateFidMtx(nz, nx, ext, iflag, vp, vs, rho, dz, dx, dt, f0);
+
+if iflag == 1
+   Nz = nz + 2*ext
+elseif iflag == 2
+   Nz = nz +   ext
+end
+Nx = nx + 2*ext
 
 root = homedir();
 path_pv = join([root "/Desktop/pv.bin"])
@@ -10,22 +17,22 @@ isx = collect(1:2:nx); isz = ones(Int64,length(isx)); ot = zeros(length(isx));
 flags = vec([false false true true false]);
 srcs  = InitMultiSources(isz, isx, nz, nx, ext, iflag, f0, ot, dt, flags);
 MultiStepForward(path_pv, srcs, fidMtx, dz, dx)
+(vxx, vxz, vzx, vzz) = ReadPv(path_pv, 300); p = vxx+vzz; s=vxz-vzx;
+SeisPlot(reshape(p, Nz, Nx)); SeisPlot(reshape(s, Nz, Nx));
 
 path_wfd = join([root "/Desktop/wfd.bin"])
 MultiStepForward(path_wfd, srcs, fidMtx)
+wfd = ReadWfd(path_wfd, 300);
+SeisPlot(reshape(wfd.Vx, Nz, Nx))
 
-wfd = ReadWfd(path_wfd, 300); (vxx, vxz, vzx, vzz) = ReadPv(path_pv, 300);
-tmp = reshape(wfd.Vx, 177+30, 203+60); imshow(tmp[1:nz, ext+1:nx+ext]);
-tmp = reshape(wfd.Vz, 177+30, 203+60); figure(); imshow(tmp[1:nz, ext+1:nx+ext]);
-figure(); imshow(vzz+vxx); figure(); imshow(vzx-vxz);
-
-dm = zeros(nz, nx); du = zeros(nz, nx); dm[88, 1:end] = 500.; du[88, 1:end] = 500.;
+dm = zeros(Nz, Nx); du = zeros(Nz, Nx); dm[floor(Int64, Nz/2), 1:end] = 500.; du[floor(Int64, Nz/2), 1:end] = 500.;
+dm = vec(dm); du = vec(du);
 irx = collect(1:2:nx); irz = 2*ones(Int64, length(irx));
-shotv = MultiStepForward(irz, irx, path_pv,  dm, du, fidMtx; tmax = 0.75)
-imshow(shotv.Vx, aspect=0.04); figure(); imshow(shotv.Vz, aspect=0.04)
+shotv = MultiStepForward(irz, irx, path_pv,  dm, du, fidMtx)
+SeisPlot(shotv.Vz); SeisPlot(shotv.Vx);
 
 (dm1, du1) = MultiStepAdjoint(shotv, fidMtx, path_pv);
-imshow(dm1); figure(); imshow(du1);
+SeisPlot(reshape(dm1, Nz, Nx)); SeisPlot(reshape(du1, Nz, Nx)); 
 
 # ==============================================================================
 using PyPlot, ElasticWave

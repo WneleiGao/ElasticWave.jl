@@ -142,6 +142,39 @@ function MultiStepForward(path::String, src::Source, fidMtx::FidMtx, dz::Float64
     close(fid)
     return nothing
 end
+
+# write (vxx, vxz, vzx, vzz); inject multiple souces
+function MultiStepForward(path::String, srcs::Array{Source,1}, fidMtx::FidMtx, dz::Float64, dx::Float64; tmax=0.5)
+    nz  = srcs[1].nz ; nx   = srcs[1].nx   ;
+    ext = srcs[1].ext; iflag= srcs[1].iflag; dt = srcs[1].dt;
+    (stl, stu) = SourcesTimeRange(srcs)
+    nt  = round(Int64, tmax/dt)+1
+    spt1= InitSnapShot(nz, nx, ext, iflag, dt, 1)
+    spt2= InitSnapShot(nz, nx, ext, iflag, dt, 2)
+    AddMultiSources!(spt1, srcs)
+    if iflag == 1
+       Nz = nz + 2*ext
+    elseif iflag == 2
+       Nz = nz +   ext
+    end
+    Nx = nx + 2*ext
+    vxx=zeros(Nz,Nx); vxz=zeros(Nz,Nx);
+    vzx=zeros(Nz,Nx); vzz=zeros(Nz,Nx);
+    tmp = zeros(length(spt1.Vxx))
+    tmp1= zeros(tmp)
+    partialV!(vxx, vxz, vzx, vzz, spt1, dz, dx, tmp, tmp1);
+    fid = WritePv(path, vxx, vxz, vzx, vzz, nz, nx, ext, iflag, dt);
+    for it = 2 : nt
+        OneStepForward!(spt2, spt1, fidMtx, tmp, tmp1)
+        if stl <= (it-1)*dt <= stu
+           AddMultiSources!(spt2, srcs)
+        end
+        CopySnapShot!(spt1, spt2)
+        partialV!(vxx, vxz, vzx, vzz, spt1, dz, dx, tmp, tmp1); WritePv(fid, vxx, vxz, vzx, vzz);
+    end
+    close(fid)
+    return nothing
+end
 # function MultiStepForward(path::String, src::Source, fidMtx::FidMtx, dz::Float64, dx::Float64; tmax=0.5)
 #     nz  =  src.nz;  nx = src.nx    ;
 #     ext = src.ext;  iflag=src.iflag; dt  = src.dt;
@@ -167,31 +200,6 @@ end
 #     close(fid)
 #     return nothing
 # end
-
-# write (vxx, vxz, vzx, vzz); inject multiple souces
-function MultiStepForward(path::String, srcs::Array{Source,1}, fidMtx::FidMtx, dz::Float64, dx::Float64; tmax=0.5)
-    nz  = srcs[1].nz ; nx   = srcs[1].nx   ;
-    ext = srcs[1].ext; iflag= srcs[1].iflag; dt = srcs[1].dt;
-    (stl, stu) = SourcesTimeRange(srcs)
-    nt  = round(Int64, tmax/dt)+1
-    spt1= InitSnapShot(nz, nx, ext, iflag, dt, 1)
-    spt2= InitSnapShot(nz, nx, ext, iflag, dt, 2)
-    AddMultiSources!(spt1, srcs)
-    tmp = zeros(length(spt1.Vxx))
-    tmp1= zeros(tmp)
-    partialV!(vxx, vxz, vzx, vzz, spt1, dz, dx, tmp, tmp1);
-    fid = WritePv(path, vxx, vxz, vzx, vzz, nz, nx, ext, iflag, dt);
-    for it = 2 : nt
-        OneStepForward!(spt2, spt1, fidMtx, tmp, tmp1)
-        if stl <= (it-1)*dt <= stu
-           AddMultiSources!(spt2, srcs)
-        end
-        CopySnapShot!(spt1, spt2)
-        partialV!(vxx, vxz, vzx, vzz, spt1, dz, dx, tmp, tmp1); WritePv(fid, vxx, vxz, vzx, vzz);
-    end
-    close(fid)
-    return nothing
-end
 
 # output shotv(Vx, Vz), Born approximation
 function MultiStepForward(irz::Array{Int64,1}, irx::Array{Int64,1}, path::String, dm::Array{Float64,1}, du::Array{Float64,1}, fidMtx::FidMtx; tmax=0.5)

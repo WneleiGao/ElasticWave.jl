@@ -1,7 +1,7 @@
 
 using PyPlot, ElasticWave
 
-nz = 123; nx = 321; ext= 30;   iflag = 1;
+nz = 123; nx = 321; ext= 20;   iflag = 1;
 dx = 5. ; dz = 5. ; dt = 5e-4; tmax = 0.5; f0=30.;
 vp =4000.*ones(nz,nx);  vs=2000.*ones(nz,nx); rho=2.5*ones(nz,nx)*1e-4;
 fidMtx = CreateFidMtx(nz, nx, ext, iflag, vp, vs, rho, dz, dx, dt, f0);
@@ -64,7 +64,7 @@ end
 isz = convert(Array{Int64,1}, isz);
 isx = convert(Array{Int64,1}, isx);
 ot  = convert(Array{Float64,1}, ot);
-srcs = InitMultiSources(isz, isx, nz, nx, ext, iflag, f0, ot, dt, flags)
+srcs = InitMultiSources(isz, isx, nz, nx, ext, iflag, f0, ot, dt, flags);
 root = homedir(); path = joinpath(root, "Desktop/spt.bin");
 srcs2spt(path, srcs);
 irx = collect(1:nx); irz = ones(Int64, length(irx));
