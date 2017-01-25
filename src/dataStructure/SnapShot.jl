@@ -521,56 +521,72 @@ function partialV!(vxx::Array{Float64,2}, vxz::Array{Float64,2}, vzx::Array{Floa
     nz = spt.nz; nx = spt.nx; ext = spt.ext; iflag = spt.iflag
     if iflag == 1
        Nz = nz + 2*ext
-       upper = ext
     elseif iflag == 2
        Nz = nz +   ext
-       upper = 0
     end
+    Nx = nx + 2*ext
     mysum1!(vx, spt.Vxx, spt.Vxz)
     mysum1!(vz, spt.Vzx, spt.Vzz)
     for ix = 1 : Nx
         for iz = 1 : Nz
           # compute Dvx/Dx, centered on (i,j)
-            ind1 = (ix+ext-3)*Nz + (iz+upper)
-            ind2 = (ix+ext-2)*Nz + (iz+upper)
-            ind3 = (ix+ext-1)*Nz + (iz+upper)
-            ind4 = (ix+ext  )*Nz + (iz+upper)
-            vxx[iz,ix] =  a1/dx*(vx[ind3]-vx[ind2]) + a2/dx*(vx[ind4]-vx[ind1])
-          # compute Dvx/Dz
-            if iflag == 2 && iz == 1
-               ind1 = (ix+ext-1)*Nz + iz+upper
-               ind2 = (ix+ext-1)*Nz + iz+upper+1
-               ind3 = (ix+ext-1)*Nz + iz+upper+2
-               vxz[iz,ix] =  a1/dz*(vx[ind2]-vx[ind1]) + a2/dx*(vx[ind3])
+            indp1h = (ix-3)*Nz + iz
+            indph  = (ix-2)*Nz + iz
+            indh   = (ix-1)*Nz + iz
+            ind1h  = (ix  )*Nz + iz
+            if ix == 1
+               vxx[iz,ix] = a1/dx*(vx[indh]          ) + a2/dx*(vx[ind1h]           )
+            elseif ix == 2
+               vxx[iz,ix] = a1/dx*(vx[indh]-vx[indph]) + a2/dx*(vx[ind1h]           )
+            elseif ix == Nx
+               vxx[iz,ix] = a1/dx*(vx[indh]-vx[indph]) + a2/dx*(         -vx[indp1h])
             else
-               ind1 = (ix+ext-1)*Nz + iz+upper-1
-               ind2 = (ix+ext-1)*Nz + iz+upper
-               ind3 = (ix+ext-1)*Nz + iz+upper+1
-               ind4 = (ix+ext-1)*Nz + iz+upper+2
-               vxz[iz,ix] =  a1/dz*(vx[ind3]-vx[ind2]) + a2/dz*(vx[ind4]-vx[ind1])
+               vxx[iz,ix] = a1/dx*(vx[indh]-vx[indph]) + a2/dx*(vx[ind1h]-vx[indp1h])
             end
-            # compute Dvz/Dx
-               ind1 = (ix+ext-2)*Nz + (iz+upper)
-               ind2 = (ix+ext-1)*Nz + (iz+upper)
-               ind3 = (ix+ext  )*Nz + (iz+upper)
-               ind4 = (ix+ext+1)*Nz + (iz+upper)
-               vzx[iz,ix] =  a1/dx*(vz[ind3]-vz[ind2]) + a2/dx*(vz[ind4]-vz[ind1])
-          # compute Dvz/Dz
-            if iflag == 2 && iz == 1
-               ind1 = (ix+ext-1)*Nz + iz+upper
-               ind2 = (ix+ext-1)*Nz + iz+upper+1
-               vzz[iz,ix] =  a1/dz*vz[ind1] + a2/dz*vz[ind2]
-            elseif iflag == 2 && iz == 2
-               ind1 = (ix+ext-1)*Nz + iz+upper-1
-               ind2 = (ix+ext-1)*Nz + iz+upper
-               ind3 = (ix+ext-1)*Nz + iz+upper+1
-               vzz[iz,ix] =  a1/dz*(vz[ind2]-vz[ind1]) + a2/dz*vz[ind3]
+
+          # compute Dvx/Dz, centered on (i+1/2, j+1/2)
+            indp1h = (ix-1)*Nz + iz-1
+            indph  = (ix-1)*Nz + iz
+            indh   = (ix-1)*Nz + iz+1
+            ind1h  = (ix-1)*Nz + iz+2
+            if iz == 1
+               vxz[iz,ix] = a1/dz*(vx[indh]-vx[indph]) + a2/dz*(vx[ind1h]           )
+            elseif iz == Nz-1
+               vxz[iz,ix] = a1/dz*(vx[indh]-vx[indph]) + a2/dz*(         -vx[indp1h])
+            elseif iz == Nz
+               vxz[iz,ix] = a1/dz*(        -vx[indph]) + a2/dz*(         -vx[indp1h])
             else
-               ind1 = (ix+ext-1)*Nz + iz+upper-2
-               ind2 = (ix+ext-1)*Nz + iz+upper-1
-               ind3 = (ix+ext-1)*Nz + iz+upper
-               ind4 = (ix+ext-1)*Nz + iz+upper+1
-               vzz[iz,ix] =  a1/dz*(vz[ind3]-vz[ind2]) + a2/dz*(vz[ind4]-vz[ind1])
+               vxz[iz,ix] = a1/dz*(vx[indh]-vx[indph]) + a2/dz*(vx[ind1h]-vx[indp1h])
+            end
+
+            # compute Dvz/Dx
+            indp1h = (ix-2)*Nz + iz
+            indph  = (ix-1)*Nz + iz
+            indh   = (ix  )*Nz + iz
+            ind1h  = (ix+1)*Nz + iz
+            if ix == 1
+               vzx[iz,ix] = a1/dx*(vz[indh]-vz[indph]) + a2/dx*(vz[ind1h]           )
+            elseif ix == Nx-1
+               vzx[iz,ix] = a1/dx*(vz[indh]-vz[indph]) + a2/dx*(         -vz[indp1h])
+            elseif ix == Nx
+               vzx[iz,ix] = a1/dx*(        -vz[indph]) + a2/dx*(         -vz[indp1h])
+            else
+               vzx[iz,ix] = a1/dx*(vz[indh]-vz[indph]) + a2/dx*(vz[ind1h]-vz[indp1h])
+            end
+
+          # compute Dvz/Dz, centered on (i+1/2, j+1/2)
+            indp1h = (ix-1)*Nz + iz-2
+            indph  = (ix-1)*Nz + iz-1
+            indh   = (ix-1)*Nz + iz
+            ind1h  = (ix-1)*Nz + iz+1
+            if iz == 1
+               vzz[iz,ix] = a1/dz*(vz[indh]          ) + a2/dz*(vz[ind1h]           )
+            elseif iz == 2
+               vzz[iz,ix] = a1/dz*(vz[indh]-vz[indph]) + a2/dz*(vz[ind1h]           )
+            elseif iz == Nz
+               vzz[iz,ix] = a1/dz*(vz[indh]-vz[indph]) + a2/dz*(         -vz[indp1h])
+            else
+               vzz[iz,ix] = a1/dz*(vz[indh]-vz[indph]) + a2/dz*(vz[ind1h]-vz[indp1h])
             end
         end
     end
@@ -663,27 +679,55 @@ function ReadPv(path::String, it::Int64)
     nz  = Int64(read(fid,Int32)); nx = Int64(read(fid,Int32));
     ext = Int64(read(fid,Int32)); iflag = Int64(read(fid,Int32));
     dt  = Float64(read(fid,Float32));
-    sliceSize = sizeof(Float32) * nz * nx * 4
+    if iflag == 1
+       Nz = nz + 2*ext
+    elseif iflag == 2
+       Nz = nz +   ext
+    end
+    Nx = nx + 2*ext
+    sliceSize = sizeof(Float32) * Nz * Nx * 4
     position  = sizeof(Int32)*5 + (it-1)*sliceSize
     seek(fid, position)
-    vxx = convert(Array{Float64}, read(fid, Float32, nz*nx))
-    vxz = convert(Array{Float64}, read(fid, Float32, nz*nx))
-    vzx = convert(Array{Float64}, read(fid, Float32, nz*nx))
-    vzz = convert(Array{Float64}, read(fid, Float32, nz*nx))
-    vxx = reshape(vxx, nz, nx)
-    vxz = reshape(vxz, nz, nx)
-    vzx = reshape(vzx, nz, nx)
-    vzz = reshape(vzz, nz, nx)
+    vxx = convert(Array{Float64}, read(fid, Float32, Nz*Nx))
+    vxz = convert(Array{Float64}, read(fid, Float32, Nz*Nx))
+    vzx = convert(Array{Float64}, read(fid, Float32, Nz*Nx))
+    vzz = convert(Array{Float64}, read(fid, Float32, Nz*Nx))
     close(fid)
     return vxx, vxz, vzx, vzz
 end
+
+# function ReadPv(path::String, it::Int64)
+#     fid = open(path, "r")
+#     nz  = Int64(read(fid,Int32)); nx = Int64(read(fid,Int32));
+#     ext = Int64(read(fid,Int32)); iflag = Int64(read(fid,Int32));
+#     dt  = Float64(read(fid,Float32));
+#     sliceSize = sizeof(Float32) * nz * nx * 4
+#     position  = sizeof(Int32)*5 + (it-1)*sliceSize
+#     seek(fid, position)
+#     vxx = convert(Array{Float64}, read(fid, Float32, nz*nx))
+#     vxz = convert(Array{Float64}, read(fid, Float32, nz*nx))
+#     vzx = convert(Array{Float64}, read(fid, Float32, nz*nx))
+#     vzz = convert(Array{Float64}, read(fid, Float32, nz*nx))
+#     vxx = reshape(vxx, nz, nx)
+#     vxz = reshape(vxz, nz, nx)
+#     vzx = reshape(vzx, nz, nx)
+#     vzz = reshape(vzz, nz, nx)
+#     close(fid)
+#     return vxx, vxz, vzx, vzz
+# end
 
 function InfoPv(path::String; print_flag=false)
     fid = open(path, "r")
     nz  = Int64(read(fid,Int32)); nx = Int64(read(fid,Int32));
     ext = Int64(read(fid,Int32)); iflag = Int64(read(fid,Int32));
     dt = Float64(read(fid, Float32));
-    sliceSize = sizeof(Float32) * nz * nx * 4
+    if iflag == 1
+       Nz = nz + 2*ext
+    elseif iflag == 2
+       Nz = nz +   ext
+    end
+    Nx = nx + 2*ext
+    sliceSize = sizeof(Float32) * Nz * Nx * 4
     ns = round(Int64, (filesize(fid)-sizeof(Int32)*4)/sliceSize)
     if print_flag
        println("nz   : $nz"   )
@@ -696,44 +740,86 @@ function InfoPv(path::String; print_flag=false)
     close(fid)
     return nz, nx, ext, iflag, dt, ns
 end
+# function InfoPv(path::String; print_flag=false)
+#     fid = open(path, "r")
+#     nz  = Int64(read(fid,Int32)); nx = Int64(read(fid,Int32));
+#     ext = Int64(read(fid,Int32)); iflag = Int64(read(fid,Int32));
+#     dt = Float64(read(fid, Float32));
+#     sliceSize = sizeof(Float32) * nz * nx * 4
+#     ns = round(Int64, (filesize(fid)-sizeof(Int32)*4)/sliceSize)
+#     if print_flag
+#        println("nz   : $nz"   )
+#        println("nx   : $nx"   )
+#        println("ext  : $ext"  )
+#        println("iflag: $iflag")
+#        println("dt   : $dt"   )
+#        println("ns   : $ns"   )
+#     end
+#     close(fid)
+#     return nz, nx, ext, iflag, dt, ns
+# end
 
 function checkPv(path, path1)
     (nz, nx, ext, iflag, dt, nt) = InfoPv(path)
-    vxx = zeros(nz,nx); vxz = zeros(nz,nx);
-    vzx = zeros(nz,nx); vzz = zeros(nz,nx);
-    vxx1 = zeros(nz,nx); vxz1 = zeros(nz,nx);
-    vzx1 = zeros(nz,nx); vzz1 = zeros(nz,nx);
+    if iflag == 1
+       Nz = nz + 2*ext
+    elseif iflag == 2
+       Nz = nz +   ext
+    end
+    Nx = nx + 2*ext
+    vxx = zeros(Nz,Nx); vxz = zeros(Nz,Nx);
+    vzx = zeros(Nz,Nx); vzz = zeros(Nz,Nx);
+    vxx1 = zeros(Nz,Nx); vxz1 = zeros(Nz,Nx);
+    vzx1 = zeros(Nz,Nx); vzz1 = zeros(Nz,Nx);
     d=0.
     for it = 1 : nt
         (vxx , vxz , vzx , vzz ) = ReadPv(path, it)
         (vxx1, vxz1, vzx1, vzz1) = ReadPv(path1, it)
-        d = d + vecnorm(vxx-vxx1)
-        d = d + vecnorm(vxz-vxz1)
-        d = d + vecnorm(vzx-vzx1)
-        d = d + vecnorm(vzz-vzz1)
+        d = d + norm(vxx-vxx1)
+        d = d + norm(vxz-vxz1)
+        d = d + norm(vzx-vzx1)
+        d = d + norm(vzz-vzz1)
     end
     return d
 end
 
-function IptSpts(path::String, path1::String)
-    (nz, nx, ext, iflag, dt, nt) = InfoSnapShots(path1)
-    tmp = 0.0
-    for it = 1 : nt
-        spt = ReadSnapShot(path , it)
-        spt1= ReadSnapShot(path1, it)
-        tmp = tmp + dot(spt.Vxx , spt1.Vxx )
-        tmp = tmp + dot(spt.Vxz , spt1.Vxz )
-        tmp = tmp + dot(spt.Vzx , spt1.Vzx )
-        tmp = tmp + dot(spt.Vzz , spt1.Vzz )
-        tmp = tmp + dot(spt.Txxx, spt1.Txxx)
-        tmp = tmp + dot(spt.Txxz, spt1.Txxz)
-        tmp = tmp + dot(spt.Tzzx, spt1.Tzzx)
-        tmp = tmp + dot(spt.Tzzz, spt1.Tzzz)
-        tmp = tmp + dot(spt.Txzx, spt1.Txzx)
-        tmp = tmp + dot(spt.Txzz, spt1.Txzz)
-    end
-    return tmp
-end
+# function checkPv(path, path1)
+#     (nz, nx, ext, iflag, dt, nt) = InfoPv(path)
+#     vxx = zeros(nz,nx); vxz = zeros(nz,nx);
+#     vzx = zeros(nz,nx); vzz = zeros(nz,nx);
+#     vxx1 = zeros(nz,nx); vxz1 = zeros(nz,nx);
+#     vzx1 = zeros(nz,nx); vzz1 = zeros(nz,nx);
+#     d=0.
+#     for it = 1 : nt
+#         (vxx , vxz , vzx , vzz ) = ReadPv(path, it)
+#         (vxx1, vxz1, vzx1, vzz1) = ReadPv(path1, it)
+#         d = d + vecnorm(vxx-vxx1)
+#         d = d + vecnorm(vxz-vxz1)
+#         d = d + vecnorm(vzx-vzx1)
+#         d = d + vecnorm(vzz-vzz1)
+#     end
+#     return d
+# end
+
+# function IptSpts(path::String, path1::String)
+#     (nz, nx, ext, iflag, dt, nt) = InfoSnapShots(path1)
+#     tmp = 0.0
+#     for it = 1 : nt
+#         spt = ReadSnapShot(path , it)
+#         spt1= ReadSnapShot(path1, it)
+#         tmp = tmp + dot(spt.Vxx , spt1.Vxx )
+#         tmp = tmp + dot(spt.Vxz , spt1.Vxz )
+#         tmp = tmp + dot(spt.Vzx , spt1.Vzx )
+#         tmp = tmp + dot(spt.Vzz , spt1.Vzz )
+#         tmp = tmp + dot(spt.Txxx, spt1.Txxx)
+#         tmp = tmp + dot(spt.Txxz, spt1.Txxz)
+#         tmp = tmp + dot(spt.Tzzx, spt1.Tzzx)
+#         tmp = tmp + dot(spt.Tzzz, spt1.Tzzz)
+#         tmp = tmp + dot(spt.Txzx, spt1.Txzx)
+#         tmp = tmp + dot(spt.Txzz, spt1.Txzz)
+#     end
+#     return tmp
+# end
 
 function IptSpts(spt1::SnapShot, spt2::SnapShot)
     d = 0.0

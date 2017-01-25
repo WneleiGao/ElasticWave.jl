@@ -1,30 +1,33 @@
 using PyPlot, ElasticWave
-nz = 177; nx = 333; ext= 10;   iflag = 1;
+nz = 129; nx = 233; ext= 20;   iflag = 1;
 dx = 5. ; dz = 5. ; dt = 5e-4; tmax = 0.5; f0=30.;
 vp =4000.*ones(nz,nx);  vs=2000.*ones(nz,nx); rho=2.5*ones(nz,nx);
 fidMtx = CreateFidMtx(nz, nx, ext, iflag, vp, vs, rho, dz, dx, dt, f0);
 
 root = homedir();
 path_pv = join([root "/Desktop/pv.bin"])
-isz = 1; isx = 165; ot = 0.0;
+isz = 1; isx = 116; ot = 0.0;
 flags = vec([false false true true false]);
 src = InitSource(isz, isx, nz, nx, ext, iflag, f0, ot, dt, flags);
 MultiStepForward(path_pv, src, fidMtx, dz, dx)
+(vxx, vxz, vzx, vzz) = ReadPv(path_pv, 300);
+tmp = vxx+vzz; tmp = reshape(tmp, nz+2*ext, nx+2*ext); SeisPlot(tmp)
+tmp = vxz-vzx; tmp = reshape(tmp, nz+2*ext, nx+2*ext); SeisPlot(tmp)
 
-path_wfd = join([root "/Desktop/wfd.bin"])
-@time MultiStepForward(path_wfd, src, fidMtx, otype="wfd")
+# path_wfd = join([root "/Desktop/wfd.bin"])
+# @time MultiStepForward(path_wfd, src, fidMtx, otype="wfd")
 
-wfd = ReadWfd(path_wfd, 500); (vxx, vxz, vzx, vzz) = ReadPv(path_pv, 500);
-tmp = reshape(wfd.Vx, nz, nx); SeisPlot(tmp)
-tmp = reshape(wfd.Vz, nz, nx); SeisPlot(tmp)
-SeisPlot(vzz+vxx); SeisPlot(vzx-vxz);
-
-dm = zeros(nz, nx); du = zeros(nz, nx); dm[88, 110:220] = 500.; du[88, 110:220] = 500.;
-irx = collect(1:5:nx); irz = 1*ones(Int64, length(irx));
+# wfd = ReadWfd(path_wfd, 500); (vxx, vxz, vzx, vzz) = ReadPv(path_pv, 500);
+# tmp = reshape(wfd.Vx, nz, nx); SeisPlot(tmp)
+# tmp = reshape(wfd.Vz, nz, nx); SeisPlot(tmp)
+# SeisPlot(vzz+vxx); SeisPlot(vzx-vxz);
+Nz = nz+2*ext; Nx = nx+2*ext;
+dm = zeros(Nz, Nx); du = zeros(Nz, Nx); dm[88, :] = 500.; du[88, :] = 500.; dm = vec(dm); du=vec(du);
+irx = collect(1:nx); irz = 1*ones(Int64, length(irx));
 @time shotv = MultiStepForward(irz, irx, path_pv,  dm, du, fidMtx; tmax = tmax)
 path_wfd_born = join([root "/Desktop/wfd_born.bin"])
 MultiStepForward(path_wfd_born, path_pv, dm, du, fidMtx; tmax=tmax);
-wfd = ReadWfd(path_wfd_born, 300); SeisPlot(reshape(wfd.Vx, nz, nx)); SeisPlot(reshape(wfd.Vz, nz, nx));
+wfd = ReadWfd(path_wfd_born, 650); SeisPlot(reshape(wfd.Vx, nz, nx)); SeisPlot(reshape(wfd.Vz, nz, nx));
 
 SeisPlot(shotv.Vx); SeisPlot(shotv.Vz)
 

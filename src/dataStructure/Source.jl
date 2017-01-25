@@ -202,7 +202,39 @@ function AddMultiSources!(spt::SnapShot, srcs::Array{Source,1})
     return nothing
 end
 
-function AddSourceBorn!(spt::SnapShot, path::String, dm::Array{Float64,2}, du::Array{Float64,2})
+function srcs2spt(path::String, srcs::Array{Source,1})
+    (tl, tu) = SourcesTimeRange(srcs)
+    nz = srcs[1].nz; nx = srcs[1].nx; ext = srcs[1].ext; iflag = srcs[1].iflag;
+    dt = srcs[1].dt; nt = floor(Int64, tu/dt)+1;
+    spt = InitSnapShot(nz, nx, ext, iflag, dt, 1)
+    AddMultiSources!(spt, srcs)
+    fid = WriteSnapShot(path, spt)
+    for it = 2 : nt
+        spt = InitSnapShot(nz, nx, ext, iflag, dt, it)
+        AddMultiSources!(spt, srcs)
+        WriteSnapShot(fid, spt)
+    end
+    close(fid)
+    return nothing
+end
+
+function srcs2wfd(path::String, srcs::Array{Source,1})
+    (tl, tu) = SourcesTimeRange(srcs)
+    nz = srcs[1].nz; nx = srcs[1].nx; ext = srcs[1].ext; iflag = srcs[1].iflag;
+    dt = srcs[1].dt; nt = floor(Int64, tu/dt)+1;
+    wfd = InitWfd(nz, nx, ext, iflag, dt, 1)
+    AddSrcs2Wfd!(wfd, srcs)
+    fid = WriteSnapShot(path, spt)
+    for it = 2 : nt
+        spt = InitSnapShot(nz, nx, ext, iflag, dt, it)
+        AddMultiSources!(spt, srcs)
+        WriteSnapShot(fid, spt)
+    end
+    close(fid)
+    return nothing
+end
+
+function AddSourceBorn!(spt::SnapShot, path::String, dm::Array{Float64,1}, du::Array{Float64,1})
     it = spt.it;
     nz = spt.nz; nx = spt.nx; ext = spt.ext;
     if spt.iflag == 1
@@ -213,29 +245,56 @@ function AddSourceBorn!(spt::SnapShot, path::String, dm::Array{Float64,2}, du::A
        upper = 0
     end
     Nx = nx + 2*ext
-    # add source to Txx
-    tmp = zeros(Nz, Nx)
     (vxx, vxz, vzx, vzz) = ReadPv(path, it)
-    tmp[upper+1:nz+upper, ext+1:nx+ext] = 1/2*((vxx+vzz).*dm+2*vxx.*du)
-    tmp = vec(tmp)
+    pc = vxx+vzz
+    sc = vxz+vzx
+    # add source to Txx
+    tmp = 1/2*(pc.*dm+2*vxx.*du);
     spt.Txxx = spt.Txxx + tmp
     spt.Txxz = spt.Txxz + tmp
     # add source to Tzz
-    tmp = zeros(Nz, Nx)
-    tmp[upper+1:nz+upper, ext+1:nx+ext] = 1/2*((vxx+vzz).*dm+2*vzz.*du)
-    tmp = vec(tmp)
+    tmp = 1/2*(pc.*dm+2*vzz.*du)
     spt.Tzzx = spt.Tzzx + tmp
     spt.Tzzz = spt.Tzzz + tmp
     # add source to Txz
-    tmp = zeros(Nz, Nx)
-    tmp[upper+1:nz+upper, ext+1:nx+ext] = 1/2*((vxz+vzx).*du)
-    tmp = vec(tmp)
+    tmp = 1/2*(sc.*du)
     spt.Txzx = spt.Txzx + tmp
     spt.Txzz = spt.Txzz + tmp
     return nothing
 end
-
-function ConvertBornSource2Spts(path_spt::String, path_pv::String, dm::Array{Float64,2}, du::Array{Float64,2})
+# function AddSourceBorn!(spt::SnapShot, path::String, dm::Array{Float64,2}, du::Array{Float64,2})
+#     it = spt.it;
+#     nz = spt.nz; nx = spt.nx; ext = spt.ext;
+#     if spt.iflag == 1
+#        Nz = nz + 2*ext
+#        upper = ext
+#      elseif spt.iflag == 2
+#        Nz = nz +   ext
+#        upper = 0
+#     end
+#     Nx = nx + 2*ext
+#     # add source to Txx
+#     tmp = zeros(Nz, Nx)
+#     (vxx, vxz, vzx, vzz) = ReadPv(path, it)
+#     tmp[upper+1:nz+upper, ext+1:nx+ext] = 1/2*((vxx+vzz).*dm+2*vxx.*du)
+#     tmp = vec(tmp)
+#     spt.Txxx = spt.Txxx + tmp
+#     spt.Txxz = spt.Txxz + tmp
+#     # add source to Tzz
+#     tmp = zeros(Nz, Nx)
+#     tmp[upper+1:nz+upper, ext+1:nx+ext] = 1/2*((vxx+vzz).*dm+2*vzz.*du)
+#     tmp = vec(tmp)
+#     spt.Tzzx = spt.Tzzx + tmp
+#     spt.Tzzz = spt.Tzzz + tmp
+#     # add source to Txz
+#     tmp = zeros(Nz, Nx)
+#     tmp[upper+1:nz+upper, ext+1:nx+ext] = 1/2*((vxz+vzx).*du)
+#     tmp = vec(tmp)
+#     spt.Txzx = spt.Txzx + tmp
+#     spt.Txzz = spt.Txzz + tmp
+#     return nothing
+# end
+function ConvertBornSource2Spts(path_spt::String, path_pv::String, dm::Array{Float64,1}, du::Array{Float64,1})
     (nz, nx, ext, iflag, dt, ns) = InfoPv(path_pv)
     if iflag == 1
        Nz = nz + 2*ext
@@ -250,15 +309,10 @@ function ConvertBornSource2Spts(path_spt::String, path_pv::String, dm::Array{Flo
     write(fid, nz, nx, ext, iflag, dt)
     for it = 1 : ns
         (vxx, vxz, vzx, vzz) = ReadPv(path_pv, it)
-        Txx = zeros(Nz, Nx)
-        Txx[upper+1:nz+upper, ext+1:nx+ext] = 1/2*((vxx+vzz).*dm + 2*vxx.*du)
-        Txx = vec(Txx)
-        Tzz = zeros(Nz, Nx)
-        Tzz[upper+1:nz+upper, ext+1:nx+ext] = 1/2*((vxx+vzz).*dm + 2*vzz.*du)
-        Tzz = vec(Tzz)
-        Txz = zeros(Nz, Nx)
-        Txz[upper+1:nz+upper, ext+1:nx+ext] = 1/2*((vxz+vzx).*du)
-        Txz = vec(Txz)
+        pc = vxx+vzz
+        Txx = 1/2*(pc.*dm + 2*vxx.*du)
+        Tzz = 1/2*(pc.*dm + 2*vzz.*du)
+        Txz = 1/2*(sc.*du)
         write(fid, zeros(Nz*Nx))
         write(fid, zeros(Nz*Nx))
         write(fid, zeros(Nz*Nx))
@@ -273,3 +327,41 @@ function ConvertBornSource2Spts(path_spt::String, path_pv::String, dm::Array{Flo
     close(fid)
     return nothing
 end
+# function ConvertBornSource2Spts(path_spt::String, path_pv::String, dm::Array{Float64,2}, du::Array{Float64,2})
+#     (nz, nx, ext, iflag, dt, ns) = InfoPv(path_pv)
+#     if iflag == 1
+#        Nz = nz + 2*ext
+#        upper = ext
+#      elseif iflag == 2
+#        Nz = nz +   ext
+#        upper = 0
+#     end
+#     Nx = nx + 2*ext
+#     # add source to Txx
+#     fid = open(path_spt, "w");
+#     write(fid, nz, nx, ext, iflag, dt)
+#     for it = 1 : ns
+#         (vxx, vxz, vzx, vzz) = ReadPv(path_pv, it)
+#         Txx = zeros(Nz, Nx)
+#         Txx[upper+1:nz+upper, ext+1:nx+ext] = 1/2*((vxx+vzz).*dm + 2*vxx.*du)
+#         Txx = vec(Txx)
+#         Tzz = zeros(Nz, Nx)
+#         Tzz[upper+1:nz+upper, ext+1:nx+ext] = 1/2*((vxx+vzz).*dm + 2*vzz.*du)
+#         Tzz = vec(Tzz)
+#         Txz = zeros(Nz, Nx)
+#         Txz[upper+1:nz+upper, ext+1:nx+ext] = 1/2*((vxz+vzx).*du)
+#         Txz = vec(Txz)
+#         write(fid, zeros(Nz*Nx))
+#         write(fid, zeros(Nz*Nx))
+#         write(fid, zeros(Nz*Nx))
+#         write(fid, zeros(Nz*Nx))
+#         write(fid, Txx         )
+#         write(fid, Txx         )
+#         write(fid, Tzz         )
+#         write(fid, Tzz         )
+#         write(fid, Txz         )
+#         write(fid, Txz         )
+#     end
+#     close(fid)
+#     return nothing
+# end

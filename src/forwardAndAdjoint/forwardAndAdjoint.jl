@@ -5,7 +5,8 @@ export mysum1!,
        OneStepForward!,
        OneStepAdjoint!,
        MultiStepForward,
-       MultiStepAdjoint
+       MultiStepAdjoint,
+       MultiStepAdjoint_spt
 
 include("OneStepForwardAdjoint.jl")
 include("MultiStepForward.jl")

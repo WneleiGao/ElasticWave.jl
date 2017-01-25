@@ -255,7 +255,7 @@ function NormOfShot(shpt::Shot; itype="l2")
   return tmp
 end
 
-function imaging(dm::Array{Float64,2}, du::Array{Float64,2}, spt::SnapShot, path::String)
+function imaging!(dm::Array{Float64,1}, du::Array{Float64,1}, spt::SnapShot, path::String)
     nz = spt.nz; nx = spt.nx; ext = spt.ext; iflag = spt.iflag;
     it = spt.it
     if spt.iflag == 1
@@ -267,16 +267,39 @@ function imaging(dm::Array{Float64,2}, du::Array{Float64,2}, spt::SnapShot, path
     end
     Nx = spt.nx + 2*spt.ext
     (vxx, vxz, vzx, vzz) = ReadPv(path, it)
-    Txx = reshape(spt.Txxx+spt.Txxz, Nz, Nx) * 1/2
-    Tzz = reshape(spt.Tzzx+spt.Tzzz, Nz, Nx) * 1/2
-    Txz = reshape(spt.Txzx+spt.Txzz, Nz, Nx) * 1/2
-    tmp = Txx[upper+1:upper+nz, ext+1:ext+nx] + Tzz[upper+1:upper+nz, ext+1:ext+nx]
-    dm  = dm + (vxx+vzz) .* tmp
-    du  = du + 2*vxx.*Txx[upper+1:upper+nz, ext+1:ext+nx]
-    du  = du + 2*vzz.*Tzz[upper+1:upper+nz, ext+1:ext+nx]
-    du  = du + (vxz+vzx) .* Txz[upper+1:upper+nz, ext+1:ext+nx]
-    return dm, du
+    Txx = (spt.Txxx+spt.Txxz) * 1/2
+    Tzz = (spt.Tzzx+spt.Tzzz) * 1/2
+    Txz = (spt.Txzx+spt.Txzz) * 1/2
+    tmp = Txx+Tzz
+    mysum2!(dm, (vxx+vzz).*tmp)
+    mysum2!(du, 2*vxx.*Txx)
+    mysum2!(du, 2*vzz.*Tzz)
+    mysum2!(du, (vxz+vzx).*Txz)
+    return nothing
 end
+
+# function imaging(dm::Array{Float64,1}, du::Array{Float64,1}, spt::SnapShot, path::String)
+#     nz = spt.nz; nx = spt.nx; ext = spt.ext; iflag = spt.iflag;
+#     it = spt.it
+#     if spt.iflag == 1
+#        Nz = spt.nz + 2*spt.ext
+#        upper = spt.ext
+#     elseif spt.iflag == 2
+#        Nz = spt.nz +   spt.ext
+#        upper = 0
+#     end
+#     Nx = spt.nx + 2*spt.ext
+#     (vxx, vxz, vzx, vzz) = ReadPv(path, it)
+#     Txx = reshape(spt.Txxx+spt.Txxz, Nz, Nx) * 1/2
+#     Tzz = reshape(spt.Tzzx+spt.Tzzz, Nz, Nx) * 1/2
+#     Txz = reshape(spt.Txzx+spt.Txzz, Nz, Nx) * 1/2
+#     tmp = Txx[upper+1:upper+nz, ext+1:ext+nx] + Tzz[upper+1:upper+nz, ext+1:ext+nx]
+#     dm  = dm + (vxx+vzz) .* tmp
+#     du  = du + 2*vxx.*Txx[upper+1:upper+nz, ext+1:ext+nx]
+#     du  = du + 2*vzz.*Tzz[upper+1:upper+nz, ext+1:ext+nx]
+#     du  = du + (vxz+vzx) .* Txz[upper+1:upper+nz, ext+1:ext+nx]
+#     return dm, du
+# end
 
 function SptsPv2Born(path_spt, path_pv)
     (nz, nx, ext, iflag, dt, nt) = InfoPv(path_pv)
