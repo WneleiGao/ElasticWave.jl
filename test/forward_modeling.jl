@@ -14,12 +14,16 @@ isz = 1; isx = 150; ot = 0.0; #source location and starting time
 flags = vec([false false true true false]); # add source to normal stress, simulate explosive sources
 src = InitSource(isz, isx, nz, nx, ext, iflag, f0, ot, dt, flags);
 
-# =========finite difference modeling==========
-irx = collect(1:nx); irz = 1*ones(Int64, length(irx)); #location of receivers
-shotv = MultiStepForward(irz, irx, src, fidMtx, tmax=tmax) #generate one shot
-SeisPlot(shotv.Vx); SeisPlot(shotv.Vz);
 
 
+# # =========finite difference modeling==========
+# irx = collect(1:nx); irz = 1*ones(Int64, length(irx)); #location of receivers
+# shotv = MultiStepForward(irz, irx, src, fidMtx, tmax=tmax) #generate one shot
+
+root = homedir(); path = join([root "/Desktop/wfd.bin"]);
+MultiStepForward(path, src, fidMtx, tmax=tmax);
+path1 = join([root "/Desktop/moive"]);
+waveAnim(path1, path, cpt="Vz")
 
 
 

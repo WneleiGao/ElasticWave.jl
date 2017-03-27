@@ -1,3 +1,29 @@
+# return recordings of particle velocity by injecting windowed source cube
+function MultiStepForward(nz::Int64, nx::Int64, irz::Array{Int64,1}, irx::Array{Int64,1},
+                          wsc::WSrcCube, fidMtx::FidMtx; tmax=1.0)
+    dt = wsc.dt; ext=wsc.ext; iflag=wsc.iflag;
+    nt = round(Int64, tmax/dt)+1
+    shot = InitShotV(0, 0, nz, nx, ext, iflag, irz, irx, 0.0, dt, nt)
+    spt1 = InitSnapShot(nz, nx, ext, iflag, dt, 1)
+    spt2 = InitSnapShot(nz, nx, ext, iflag, dt, 2)
+    AddWsc2spt!(spt1, wsc)
+    Spt2ShotV!(shot, spt1)
+    tmp = zeros(length(spt1.Tzzz))
+    tmp1= zeros(tmp);
+    for it = 2 : wsc.nt
+        OneStepForward!(spt2, spt1, fidMtx, tmp, tmp1)
+        AddWsc2spt!(spt2, wsc)
+        CopySnapShot!(spt1, spt2)
+        Spt2ShotV!(shot, spt1)
+    end
+    for it = wsc.nt+1 : nt
+        OneStepForward!(spt2, spt1, fidMtx, tmp, tmp1)
+        CopySnapShot!(spt1, spt2)
+        Spt2ShotV!(shot, spt1)
+    end
+    return shot
+end
+
 # return records (vx, vz), inject single source
 function MultiStepForward(irz::Array{Int64,1}, irx::Array{Int64,1}, src::Source, fidMtx::FidMtx; tmax=0.5)
     nz  =  src.nz;  nx = src.nx    ;
@@ -73,6 +99,31 @@ function MultiStepForward(path::String, src::Source, fidMtx::FidMtx; tmax=0.5, o
         elseif otype == "spt"
            WriteSnapShot(fid, spt1)
         end
+    end
+    close(fid)
+    return nothing
+end
+
+# save the boundary of source side wave field
+function MultiStepForward(path::String, src::Source, fidMtx::FidMtx, tmax::Float64)
+    nz  =  src.nz;  nx = src.nx    ;
+    ext = src.ext;  iflag=src.iflag; dt  = src.dt;
+    stl = src.ot ;  stu = src.ot+(src.nt-1)*dt;
+    nt   = round(Int64, tmax/dt)+1
+    spt1 = InitSnapShot(nz, nx, ext, iflag, dt, 1)
+    spt2 = InitSnapShot(nz, nx, ext, iflag, dt, 2)
+    AddSource!(spt1, src)
+    bv = zeros((4*nz+(nx-4)*4)*5);
+    fid = WriteWfdBoundary(path, spt1, bv)
+    tmp = zeros(length(spt1.Vxx))
+    tmp1= zeros(tmp)
+    for it = 2 : nt
+        OneStepForward!(spt2, spt1, fidMtx, tmp, tmp1)
+        if stl <= (it-1)*dt <= stu
+           AddSource!(spt2, src)
+        end
+        CopySnapShot!(spt1, spt2)
+        WriteWfdBoundary(fid, spt1, bv)
     end
     close(fid)
     return nothing
@@ -266,6 +317,10 @@ function MultiStepForward(irz::Array{Int64,1}, irx::Array{Int64,1}, path::String
     end
     return shotv
 end
+
+
+
+
 
 # return shot(vx, vz, Txx, Tzz, Txz), inject multiple souces
 # function MultiStepForward(irz::Array{Int64,1}, irx::Array{Int64,1}, srcs::Array{Source,1}, fidMtx::FidMtx; tmax=0.5)

@@ -42,6 +42,9 @@ export # =====================PML absorbing boundaries============
        WriteSnapShot,
        ReverseOrderSnapShots,
        WriteWfd,
+       extractBoundary!,
+       WriteWfdBoundary,
+       ReadWfdBoundary,
        ReadWfd,
        InfoWfd,
        InfoSnapShots,
@@ -94,8 +97,16 @@ export # =====================PML absorbing boundaries============
        ReadImage,
        laplaceFilter,
        lambdamu2vpvs,
-       gec
-
+       gec,
+      #  ======================SrcLoc================================
+       WSrcCube,
+       InitWSrcCube,
+       CopyWsc,
+       l112norm,
+       EngDisWsc,
+       Srcs2Wsc,
+       AddWsc2spt!,
+       spt2Wsc!
 
 include("dampCoef.jl")
 include("fidMtx.jl")
@@ -103,3 +114,4 @@ include("SnapShot.jl")
 include("Source.jl")
 include("Record.jl")
 include("Image.jl")
+include("WsrcCube.jl")

@@ -219,6 +219,93 @@ function WriteWfd(fid::IOStream, snapShot::SnapShot)
     return nothing
 end
 
+function extractBoundary!(bv::Array{Float64,1}, spt::SnapShot)
+    nz = spt.nz;  nx = spt.nx;
+    ext= spt.ext; iflag = spt.iflag;
+    if iflag == 1
+       Nz = nz + 2*ext
+       zu = ext
+    elseif iflag == 2
+       Nz = nz +   ext
+       zu = 0
+    end
+    Nx = nx + 2*ext
+    # save vz
+    tmp=spt.Vzx+spt.Vzz; tmp=reshape(tmp,Nz,Nx);
+    tmp=tmp[zu+1:zu+nz,ext+1:ext+nx];
+    il=   1; iu=   2*nz    ; bv[il:iu]=vec(tmp[:,1:2]);
+    il=iu+1; iu=iu+2*nz    ; bv[il:iu]=vec(tmp[:,end-1:end]);
+    il=iu+1; iu=iu+2*(nx-4); bv[il:iu]=vec((tmp[1:2,3:nx-2])');
+    il=iu+1; iu=iu+2*(nx-4); bv[il:iu]=vec((tmp[end-1:end,3:nx-2])');
+    # save vx
+    tmp=spt.Vxz+spt.Vxx; tmp=reshape(tmp,Nz,Nx);
+    tmp=tmp[zu+1:zu+nz,ext+1:ext+nx];
+    il=iu+1; iu=iu+2*nz    ; bv[il:iu]=vec(tmp[:,1:2]);
+    il=iu+1; iu=iu+2*nz    ; bv[il:iu]=vec(tmp[:,end-1:end]);
+    il=iu+1; iu=iu+2*(nx-4); bv[il:iu]=vec((tmp[1:2,3:nx-2])');
+    il=iu+1; iu=iu+2*(nx-4); bv[il:iu]=vec((tmp[end-1:end,3:nx-2])');
+    # save Tzz
+    tmp=spt.Tzzz+spt.Tzzx; tmp=reshape(tmp,Nz,Nx);
+    tmp=tmp[zu+1:zu+nz,ext+1:ext+nx];
+    il=iu+1; iu=iu+2*nz    ; bv[il:iu]=vec(tmp[:,1:2]);
+    il=iu+1; iu=iu+2*nz    ; bv[il:iu]=vec(tmp[:,end-1:end]);
+    il=iu+1; iu=iu+2*(nx-4); bv[il:iu]=vec((tmp[1:2,3:nx-2])');
+    il=iu+1; iu=iu+2*(nx-4); bv[il:iu]=vec((tmp[end-1:end,3:nx-2])');
+    # save Txx
+    tmp=spt.Txxz+spt.Txxx; tmp=reshape(tmp,Nz,Nx);
+    tmp=tmp[zu+1:zu+nz,ext+1:ext+nx];
+    il=iu+1; iu=iu+2*nz    ; bv[il:iu]=vec(tmp[:,1:2]);
+    il=iu+1; iu=iu+2*nz    ; bv[il:iu]=vec(tmp[:,end-1:end]);
+    il=iu+1; iu=iu+2*(nx-4); bv[il:iu]=vec((tmp[1:2,3:nx-2])');
+    il=iu+1; iu=iu+2*(nx-4); bv[il:iu]=vec((tmp[end-1:end,3:nx-2])');
+    # save Txz
+    tmp=spt.Txzx+spt.Txzz; tmp=reshape(tmp,Nz,Nx);
+    tmp=tmp[zu+1:zu+nz,ext+1:ext+nx];
+    il=iu+1; iu=iu+2*nz    ; bv[il:iu]=vec(tmp[:,1:2]);
+    il=iu+1; iu=iu+2*nz    ; bv[il:iu]=vec(tmp[:,end-1:end]);
+    il=iu+1; iu=iu+2*(nx-4); bv[il:iu]=vec((tmp[1:2,3:nx-2])');
+    il=iu+1; iu=iu+2*(nx-4); bv[il:iu]=vec((tmp[end-1:end,3:nx-2])');
+    return nothing
+end
+
+function WriteWfdBoundary(path::String, spt::SnapShot, bv::Array{Float64,1})
+    fid = open(path, "w")
+    nz = spt.nz;  nx = spt.nx;
+    ext= spt.ext; iflag = spt.iflag;
+    write(fid, nz, nx)
+    extractBoundary!(bv, spt)
+    write(fid, bv)
+    flush(fid)
+    return fid
+end
+
+function WriteWfdBoundary(fid::IOStream, spt::SnapShot, bv::Array{Float64,1})
+    extractBoundary!(bv, spt)
+    write(fid, bv)
+    flush(fid)
+    return fid
+end
+
+function ReadWfdBoundary(path::String)
+    fid = open(path, "r")
+    nz=read(fid,Int64); nx=read(fid,Int64);
+    l = (4*nz+(nx-4)*4)*5
+    nt= floor(Int64, (filesize(fid)-sizeof(Float64)*2)/(l*sizeof(Float64)))
+    bv= read(fid, Float64, nt*l)
+    bv= reshape(bv, l, nt)
+    return bv
+end
+
+function ReadWfdBoundary(path::String, it::Int64)
+    fid = open(path, "r")
+    nz=read(fid,Int64); nx=read(fid,Int64);
+    l = (4*nz+(nx-4)*4)*5
+    position = sizeof(Int64) + (it-1)*l*sizeof(Float64)
+    seek(fid, position)
+    bv = read(fid, Float64, l)
+    return bv
+end
+
 function ReadWfd(pathin::String, it::Int64)
     fid = open(pathin, "r")
     nz  = convert(Int64, read(fid, Int32))

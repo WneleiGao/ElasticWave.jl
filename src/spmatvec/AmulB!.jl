@@ -1,3 +1,15 @@
+function ParAmulB!(nthreads::Int64, yt::Array{Float64,1}, y::Array{Float64,1}, A::SparseMatrixCSC{Float64,Int64}, x::Array{Float64,1})
+    (m,n) = size(A)
+    length(yt) == nthreads*m || throw(DimensionMismatch("yt"))
+    if length(x) != n || length(y) != m
+       throw(DimensionMismatch("length(x) != n || length(y) != m"))
+    end
+    p = ccall((:a_mul_b_prr_, spmatveclib), Int64, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64}, Ptr{Float64}, Ptr{Int64}, Ptr{Int64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}),
+                                                    &nthreads,  &m,         &n,         A.nzval,      A.rowval,   A.colptr,   x,            y,            yt           )
+    return nothing
+end
+
+
 function AmulB!(y::Array{Float64,1}, A::SparseMatrixCSC{Float64,Int64}, x::Array{Float64,1})
     (m,n) = size(A)
     if length(x) != n || length(y) != m
