@@ -22,13 +22,13 @@ wnt = 500; tmp = zeros(wnt,2);
 tmp[1:346,1] = wsc.p[50,35,:];
 tmp[1:346,2] = wsc.p[50,65,:];
 
-fig = figure("1", figsize=(12,6)); s=15;
-subplot(1,2,1); SeisPlot(fignum="1", vp, cmap="jet", vmax=4000, vmin=3000, dx=5, dy=5, xlabel="X (m)", ylabel="Y (m)", ticksize=s, labelsize=s);
+fig = figure("1", figsize=(12,6)); s=25;
+subplot(1,2,1); Seismic.SeisPlot(fignum="1", vp, cmap="jet", vmax=4000, vmin=3000, dx=5, dy=5, xlabel="X (m)", ylabel="Y (m)", ticksize=s, labelsize=s);
 ax = gca(); ax[:set_xticks]([200, 400, 600, 800]); ax[:set_yticks]([200, 400, 600, 800]);
-ax[:text](-68,40, "a)", fontsize=20, fontweight="bold")
-subplot(1,2,2); SeisPlot(fignum="1", tmp, style="wiggles", xcur=1.0, dy=0.0005, xlabel="Trace number", ylabel="Time (s)", ticksize=s, labelsize=s);
+ax[:text](-100,60, "a)", fontsize=s, fontweight="bold")
+subplot(1,2,2); Seismic.SeisPlot(fignum="1", tmp, style="wiggles", xcur=1.0, dy=0.0005, xlabel="Trace number", ylabel="Time (s)", ticksize=s, labelsize=s);
 ax = gca(); ax[:set_xticks]([0, 1]); ax[:set_yticks]([0.05, 0.10, 0.15, 0.20]);
-ax[:text](-1.2,0.01, "b)", fontsize=20, fontweight="bold")
+ax[:text](-1.3,0.015, "b)", fontsize=s, fontweight="bold")
 tight_layout()
 
 irx = collect(1:4:nx); irz = ones(Int64,length(irx));
