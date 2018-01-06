@@ -2,7 +2,8 @@
 nz = 101; nx = 641;
 
 # grid cell size
-deltaZ = 10.0; deltaX = deltaZ;
+ deltaZ = 10.0        ;  deltaX = 10.0;
+hdeltaZ = deltaZ / 2.0; hdeltaX = deltaX / 2.0;
 
 # thickness of CPML in number of grid points
 nPointPml = 10;
@@ -43,7 +44,7 @@ hrhozx      = 0.0
 # parameter for CPML profile
 npower   = 2.0
 kmax     = 1.0
-alphamax = pi * f0
+alphaMax = pi * f0
 
 # damping profile, need to be improved  !!!
  kz=ones(nz);  dz=zeros(nz);  alphaz=zeros(nz);  az=zeros(nz);  bz=zeros(nz);
@@ -53,14 +54,63 @@ hkz=ones(nz); hdz=zeros(nz); halphaz=zeros(nz); haz=zeros(nz); hbz=zeros(nz);
 hkx=zeros(nx); hdx=zeros(nx); halphax=zeros(nx); hax=zeros(nx); hbx=zeros(nx);
 
 # specify the obsorbing boundary, origin specify the computation domain, z
-thickPmlZ = nPointPml * deltaZ; OriginTop = thickPmlZ; OriginBottom=(nz-1)*deltaZ - thickPmlZ;
-thickPmlX = nPointPml * deltaX; OriginLeft= thickPmlX; OriginRight =(nx-1)*deltaX - thickPmlX;
-
-
 reflectCoef=1e-3;
 d0Z = -(nPower + 1) * vp * log(reflectCoef) / (2.0 * thickPmlZ);
 d0X = -(nPower + 1) * vp * log(reflectCoef) / (2.0 * thickPmlX);
-zLocation=0.0; xLocation=0.0; abscissa=0.0; normalizedAbscissa=0.0;
+locationZ=0.0; locationX=0.0; abscissa=0.0; normalizedAbscissa=0.0;
+thickPmlZ = nPointPml * deltaZ; originTop = thickPmlZ; originBottom=(nz-1)*deltaZ - thickPmlZ;
+
+# vertical damping profile
+for i = 1 : nz
+    locationZ = deltaZ * (i-1)
+
+    # upper profile at grid point
+    abscissa  = originTop - locationZ
+    if abscissa > 0.0
+       normalizedAbscissa = abscissa / thickPmlZ
+       dz[i] = d0Z * normalizedAbscissa^nPower
+       kz[i] = 1.0
+       alphaz[i] = alphaMax * (1.0 - normalizedAbscissa) + 0.1 * alphaMax
+    end
+
+    # upper profile at half grid point
+    abscissa = originTop - (locationZ + hdeltaZ)
+    if abscissa > 0.0
+       normalizedAbscissa = abscissa / thickPmlZ
+       hdz[i] = d0Z * normalizedAbscissa^npower
+       hkz[i] = 1.0
+       halphaz[i] = alphaMax * (1.0 - normalizedAbscissa) + 0.1 * alphaMax
+    end
+
+    # bottom profile at grid point
+    abscissa = locationZ - originBottom
+    if abscissa > 0.0
+       normalizedAbscissa = abscissa / thickPmlZ
+       dz[i] = d0Z * normalizedAbscissa^nPower
+       kz[i] = 1.0
+       alphaz[i] = alphaMax * (1.0 - normalizedAbscissa) + 0.1 * alphaMax
+    end
+    # bottom profile at half grid point
+    abscissa = (locationZ + hdeltaZ) - originBottom
+    if abscissa > 0.0
+       normalizedAbscissa = abscissa / thickPmlZ
+       hdz[i] = d0Z * normalizedAbscissa^npower
+       hkz[i] = 1.0
+       halphaz[i] = alphaMax * (1.0 - normalizedAbscissa) + 0.1 * alphaMax
+    end
+
+    bz[i]
+
+
+end
+
+
+
+
+thickPmlX = nPointPml * deltaX; originLeft= thickPmlX; originRight =(nx-1)*deltaX - thickPmlX;
+
+
+
 
 
 # memory variables for CPML, it can be improved to save memory !!!
