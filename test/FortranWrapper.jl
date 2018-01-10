@@ -1,26 +1,22 @@
-# number of grid points
-nz = 101; nx = 641;
-
+# ==============================================================================
+#                        size of model
+# ==============================================================================
+nz = 101; nx = 641; nstep=4000;
 # grid cell size
  deltaZ = 10.0        ;  deltaX = 10.0;
 hdeltaZ = deltaZ / 2.0; hdeltaX = deltaX / 2.0;
-
 # time step size
-dt = 0.001; nstep = 4000;
-
-# source parameter
-f0  = 7.0;
-isz = 20; isx = floor(Int64, nx/2)+1;
-zsrc = (isz-1)*deltaZ; xsrc = (isx-1)*deltaX;
-
-# receivers
-irz = [50, 50]; irx = [100, 200]
-
+f0  = 7.0; dt = 0.001;# source parameter
 # ==============================================================================
 #                        elastic model parameters
 # ==============================================================================
-# velocity model
-vp = 3300.0; vs = vp / sqrt(3.0); density = 2800.0;
+vp = 3300.0; vs = vp / 1.732; density = 2800.0;
+courantNumber = vp * dt * sqrt(1.0/deltaZ^2 + 1.0/deltaX^2)
+if courantNumber > 1.0
+   println("Courant number is: $courantNumber")
+   error("time step is too large, simulation will be unstable")
+end
+
 # arrays for elastic model parameter
 lambda = zeros(nz+2, nx+2);
 mu     = zeros(nz+2, nx+2);
@@ -35,21 +31,38 @@ for j = 2 : nx+1
 end
 
 # half grid elastic model parameters
-hlambdaz    = 0.0
-hmuz        = 0.0
-hmux        = 0.0
-hlambda2muz = 0.0
-hrhozx      = 0.0
+hLambdaZ    = 0.0
+hLambda2MuZ = 0.0
+hMuZ        = 0.0
+hMuX        = 0.0
+hRhoZX      = 0.0
 
-# ==============================================================================
-#                       check stability conditions
-# ==============================================================================
-courantNumber = vp * dt * sqrt(1.0/deltaZ^2 + 1.0/deltaX^2)
-if courantNumber > 1.0
-   println("Courant number is: $courantNumber")
-   error("time step is too large, simulation will be unstable")
-end
+# arrays for wave field variables
+vz = zeros(nz+2, nx+2);
+vx = zeros(nz+2, nx+2);
+sigmazz = zeros(nz+2, nx+2);
+sigmaxx = zeros(nz+2, nx+2);
+sigmazx = zeros(nz+2, nx+2);
 
+# temperal variables to save spatial derivative
+vdvzdz = 0.0
+vdvxdx = 0.0
+vdvxdz = 0.0
+vdvzdx = 0.0
+vdsigmazzdz = 0.0
+vdsigmazxdx = 0.0
+vdsigmaxxdx = 0.0
+vdsigmazxdz = 0.0
+
+# memory variables for CPML, it can be improved to save memory !!!
+mdvzdz = zeros(nz+2, nx+2)
+mdvxdx = zeros(nz+2, nx+2)
+mdvxdz = zeros(nz+2, nx+2)
+mdvzdx = zeros(nz+2, nx+2)
+mdsigmazzdz = zeros(nz+2, nx+2)
+mdsigmazxdx = zeros(nz+2, nx+2)
+mdsigmaxxdx = zeros(nz+2, nx+2)
+mdsigmazxdz = zeros(nz+2, nx+2)
 
 # ==============================================================================
 #                      prepare for CPML damping profile
@@ -70,8 +83,8 @@ alphaMax = pi * f0
 hkz=ones(nz); hdz=zeros(nz); halphaz=zeros(nz); haz=zeros(nz); hbz=zeros(nz);
 
 # along X direction
- kx=zeros(nx);  dx=zeros(nx);  alphax=zeros(nx);  ax=zeros(nx);  bx=zeros(nx);
-hkx=zeros(nx); hdx=zeros(nx); halphax=zeros(nx); hax=zeros(nx); hbx=zeros(nx);
+ kx=ones(nx);  dx=zeros(nx);  alphax=zeros(nx);  ax=zeros(nx);  bx=zeros(nx);
+hkx=ones(nx); hdx=zeros(nx); halphax=zeros(nx); hax=zeros(nx); hbx=zeros(nx);
 
 # specify the obsorbing boundary, origin specify the computation domain, z
 reflectCoef=1e-3;
@@ -97,7 +110,7 @@ for i = 1 : nz
     abscissa = originTop - (locationZ + hdeltaZ)
     if abscissa > 0.0
        normalizedAbscissa = abscissa / thickPmlZ
-       hdz[i] = d0Z * normalizedAbscissa^npower
+       hdz[i] = d0Z * normalizedAbscissa^nPower
        hkz[i] = 1.0
        halphaz[i] = alphaMax * (1.0 - normalizedAbscissa) + 0.1 * alphaMax
     end
@@ -110,11 +123,12 @@ for i = 1 : nz
        kz[i] = 1.0
        alphaz[i] = alphaMax * (1.0 - normalizedAbscissa) + 0.1 * alphaMax
     end
+
     # bottom profile at half grid point
     abscissa = (locationZ + hdeltaZ) - originBottom
     if abscissa > 0.0
        normalizedAbscissa = abscissa / thickPmlZ
-       hdz[i] = d0Z * normalizedAbscissa^npower
+       hdz[i] = d0Z * normalizedAbscissa^nPower
        hkz[i] = 1.0
        halphaz[i] = alphaMax * (1.0 - normalizedAbscissa) + 0.1 * alphaMax
     end
@@ -147,7 +161,7 @@ for j = 1 : nx
     abscissa = originLeft - (locationX + hdeltaX)
     if abscissa > 0.0
        normalizedAbscissa = abscissa / thickPmlX
-       hdx[j] = d0X * normalizedAbscissa^npower
+       hdx[j] = d0X * normalizedAbscissa^nPower
        hkx[j] = 1.0
        halphax[j] = alphaMax * (1.0 - normalizedAbscissa) + 0.1 * alphaMax
     end
@@ -164,7 +178,7 @@ for j = 1 : nx
     abscissa = (locationX + hdeltaX) - originRight
     if abscissa > 0.0
        normalizedAbscissa = abscissa / thickPmlX
-       hdx[j] = d0Z * normalizedAbscissa^npower
+       hdx[j] = d0Z * normalizedAbscissa^nPower
        hkx[j] = 1.0
        halphax[j] = alphaMax * (1.0 - normalizedAbscissa) + 0.1 * alphaMax
     end
@@ -178,40 +192,40 @@ for j = 1 : nx
     if (abs(hdx[j]) > eps(Float32))
        hax[j] = hdx[j] / (hkx[j]*(hdx[j]+hkx[j]*halphax[j])) * (hbx[j]-1.0)
     end
+
 end
 
-# arrays for wave field variables
-vz = zeros(nz+2, nx+2);
-vx = zeros(nz+2, nx+2);
-sigmazz = zeros(nz+2, nx+2);
-sigmaxx = zeros(nz+2, nx+2);
-sigmazx = zeros(nz+2, nx+2);
-
-# memory variables for CPML, it can be improved to save memory !!!
-mdvzdz = zeros(nz+2, nx+2)
-mdvzdx = zeros(nz+2, nx+2)
-mdvxdz = zeros(nz+2, nx+2)
-mdvxdx = zeros(nz+2, nx+2)
-mdsigmazzdz = zeros(nz+2, nx+2)
-mdsigmaxxdx = zeros(nz+2, nx+2)
-mdsigmazxdz = zeros(nz+2, nx+2)
-mdsigmazxdx = zeros(nz+2, nx+2)
-
-# temperal variables to save spatial derivative
-vdvzdz = 0.0
-vdvzdx = 0.0
-vdvxdz = 0.0
-vdvxdx = 0.0
-vdsigmazzdz = 0.0
-vdsigmaxxdx = 0.0
-vdsigmazxdz = 0.0
-vdsigmazxdx = 0.0
-
+isz = 20; isx = floor(Int64, nx/2)+1;
 # ==============================================================================
 #                             start computation
 # ==============================================================================
+@time ccall((:onetimestepforward_, "/Users/wenlei/Documents/ElasticWave/test/test.so"),
+      Void, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64},
+             Ptr{Float64}, Ptr{Float64}, Ptr{Float64},
+             Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}},
+             Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64},
+             Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}},
+             Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64},
+             Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}}, Ptr{Array{Float64,2}},
+             Ptr{Array{Float64,1}}, Ptr{Array{Float64,1}}, Ptr{Array{Float64,1}}, Ptr{Array{Float64,1}}, Ptr{Array{Float64,1}}, Ptr{Array{Float64,1}},
+             Ptr{Array{Float64,1}}, Ptr{Array{Float64,1}}, Ptr{Array{Float64,1}}, Ptr{Array{Float64,1}}, Ptr{Array{Float64,1}}, Ptr{Array{Float64,1}}),
+             &nz, &nx, &nstep,
+             &deltaZ, &deltaX, &dt,
+             lambda, mu, rho,
+             &hLambdaZ, &hLambda2MuZ, &hMuZ, &hMuX, &hRhoZX,
+             sigmazz, sigmaxx, sigmazx, vz, vx,
+             &vdvzdz, &vdvxdx, &vdvxdz, &vdvzdx, &vdsigmazzdz, &vdsigmazxdx, &vdsigmaxxdx, &vdsigmazxdz,
+              mdvzdz,  mdvxdx,  mdvxdz,  mdvzdx,  mdsigmazzdz,  mdsigmazxdx,  mdsigmaxxdx,  mdsigmazxdz,
+             az, bz, kz, haz, hbz, hkz,
+             ax, bx, kx, hax, hbx, hkx)
 
 
+
+             m = 7; n=6;
+             A = zeros(Int64, m+2, n+2);
+             ccall((:assign_, "/Users/wenlei/Documents/ElasticWave/test/test.so"),
+                   Void, (Ptr{Array{Int64,2}}, Ptr{Int64}, Ptr{Int64}),
+                          A                  , &m        , &n        )
 
 
 
